@@ -364,39 +364,5 @@ def route_page(module: str):
 
 
 # ==================== 程序入口 ====================
-def print_startup_banner():
-    """打印启动横幅"""
-    print("\n" + "="*50)
-    print("心脏病数据分析与预测")
-    print("="*50)
-    print("正在启动 Streamlit 服务器...")
-    print("浏览器将自动打开 http://localhost:8501")
-    print("按 Ctrl+C 可以停止服务器")
-    print("="*50 + "\n")
-
-
-if __name__ == "__main__":
-    import sys
-    import subprocess
-    
-    # 检测是否在Streamlit环境中运行
-    try:
-        from streamlit.runtime.scriptrunner import get_script_run_ctx
-        if get_script_run_ctx() is not None:
-            # 已经在Streamlit中,直接运行
-            main()
-        else:
-            # 不在Streamlit中,启动Streamlit服务器
-            print_startup_banner()
-            subprocess.run([sys.executable, "-m", "streamlit", "run", __file__])
-    except (ImportError, AttributeError):
-        # 导入失败,直接启动
-        print_startup_banner()
-        try:
-            subprocess.run([sys.executable, "-m", "streamlit", "run", __file__])
-        except FileNotFoundError:
-            print("\n错误: 未找到 Streamlit，请先安装:")
-            print("  pip install streamlit")
-            print("\n或者安装所有依赖:")
-            print("  pip install -r requirements.txt")
-            input("\n按回车键退出...")
+# 直接运行主函数（兼容 Hugging Face Spaces 和本地运行）
+main()
