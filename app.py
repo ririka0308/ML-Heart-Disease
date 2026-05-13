@@ -1,368 +1,371 @@
-# -*- coding: utf-8 -*-
-"""
-基于机器学习的心脏病数据分析与预测
-Streamlit 入口文件 - 数据挖掘全生命周期
-"""
-
-import os
+from pathlib import Path
 import sys
 
-# 设置环境变量
-os.environ['ARROW_LIBHDFS_DIR'] = ''
-os.environ['PYARROW_IGNORE_TIMEZONE'] = '1'
-
 import streamlit as st
-from pathlib import Path
 
-# 添加项目目录到路径
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# ==================== 页面配置 ====================
+from config.config import AppConfig, PathConfig
+from pages.eda import render_eda
+from pages.feature_engineering import render_feature_engineering
+from pages.model_lab import render_model_lab
+from pages.overview import render_overview
+from pages.prediction import render_prediction
+
+
 st.set_page_config(
-    page_title="心脏病数据分析与预测",
-    page_icon="",
+    page_title=AppConfig.PAGE_TITLE,
+    page_icon=AppConfig.PAGE_ICON,
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# ==================== 隐藏默认UI元素 ====================
-st.markdown("""
-<style>
-    /* 隐藏左上角页面导航 */
-    [data-testid="stSidebarNav"] {
-        display: none !important;
-    }
-    /* 隐藏Deploy按钮 */
-    .stDeployButton {
-        display: none !important;
-    }
-</style>
-""", unsafe_allow_html=True)
 
-st.markdown("""
-<style>
-    /* 主内容区域 */
-    .main {
-        background-color: #f8f9fa;
-    }
-    
-    /* 侧边栏 */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-    }
-    [data-testid="stSidebar"] * {
-        color: #e8e8e8 !important;
-    }
-    
-    /* 侧边栏标题 */
-    .sidebar-title {
-        color: #ffffff !important;
-        font-size: 1.1rem;
-        font-weight: 600;
-        padding: 0.8rem 1rem;
-        background: rgba(52, 152, 219, 0.2);
-        border-left: 3px solid #3498db;
-        margin-bottom: 0.5rem;
-        border-radius: 0 8px 8px 0;
-    }
-    
-    /* 流程步骤指示器 */
-    .step-indicator {
-        display: flex;
-        align-items: center;
-        padding: 0.6rem 1rem;
-        margin: 2px 0;
-        border-radius: 4px;
-        font-size: 0.9rem;
-        transition: all 0.2s ease;
-    }
-    .step-number {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: rgba(52, 152, 219, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 10px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .step-active .step-number {
-        background: #3498db;
-        color: white !important;
-    }
-    
-    /* 导航Radio样式 */
-    [data-testid="stSidebar"] .stRadio > div {
-        gap: 0;
-    }
-    [data-testid="stSidebar"] .stRadio > div > label {
-        background-color: transparent !important;
-        padding: 0.7rem 1rem;
-        margin: 2px 0;
-        border-radius: 4px;
-        border-left: 3px solid transparent;
-        transition: all 0.2s ease;
-        font-size: 0.95rem;
-    }
-    [data-testid="stSidebar"] .stRadio > div > label:hover {
-        background-color: rgba(52, 152, 219, 0.15) !important;
-        border-left-color: rgba(52, 152, 219, 0.5);
-    }
-    [data-testid="stSidebar"] .stRadio > div > label[data-baseweb="radio"][aria-checked="true"] {
-        background-color: rgba(52, 152, 219, 0.25) !important;
-        border-left-color: #3498db;
-        font-weight: 500;
-    }
-    
-    /* 流程线 */
-    .flow-line {
-        border-left: 2px dashed rgba(52, 152, 219, 0.3);
-        margin-left: 1.5rem;
-        padding-left: 1rem;
-    }
-    
-    /* 主标题样式 */
-    h1 {
-        color: #2c3e50;
-        font-size: 1.8rem !important;
-        border-bottom: 3px solid #3498db;
-        padding-bottom: 0.8rem;
-        margin-bottom: 1.5rem;
-    }
-    h2 {
-        color: #34495e;
-        font-size: 1.3rem !important;
-        margin-top: 1.5rem;
-        padding-bottom: 0.5rem;
-    }
-    
-    /* 信息卡片 */
-    .info-card {
-        background: white;
-        border-radius: 8px;
-        padding: 1.2rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border-left: 4px solid #3498db;
-        margin-bottom: 1rem;
-    }
-    
-    /* 标签页样式 */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0;
-        background-color: #f1f3f4;
-        border-radius: 8px 8px 0 0;
-        padding: 0.3rem;
-    }
-    .stTabs [data-baseweb="tab"] {
-        padding: 0.7rem 1.2rem;
-        font-weight: 500;
-        border-radius: 6px;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: white !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    /* 进度说明 */
-    .progress-hint {
-        font-size: 0.75rem;
-        color: rgba(255,255,255,0.6);
-        padding: 0.3rem 1rem;
-        margin-top: -0.3rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+def inject_style() -> None:
+    st.markdown(
+        """
+        <style>
+        /* ── 全局字体与背景 ── */
+        html, body, [class*="css"] {
+            font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+        .stApp {
+            background: #f8f9fa;
+        }
 
+        /* ── 隐藏 Streamlit 自带导航与工具栏 ── */
+        [data-testid="stSidebarNav"],
+        [data-testid="stToolbarActions"],
+        [data-testid="stAppDeployButton"],
+        [data-testid="stMainMenu"],
+        [data-testid="stStatusWidget"],
+        footer,
+        #stDecoration {
+            display: none !important;
+        }
 
-# ==================== 数据科学叙事线导航 ====================
-# ==================== 导航配置 ====================
-# 数据挖掘流程模块（用户操作流程）
-WORKFLOW_MODULES = {
-    "1. 数据探索": {
-        "desc": "EDA与数据清洗",
-        "page": "eda"
-    },
-    "2. 特征工程": {
-        "desc": "特征处理与选择",
-        "page": "feature"
-    },
-    "3. 模型实验室": {
-        "desc": "算法对比与调优",
-        "page": "model"
-    },
-    "4. 智能预测": {
-        "desc": "风险预测与解释",
-        "page": "predict"
-    }
-}
+        /* ── 侧边栏：深色、干净 ── */
+        [data-testid="stSidebar"] {
+            background: #0f172a;
+            border-right: 1px solid #1e293b;
+        }
+        [data-testid="stSidebar"] * { color: #94a3b8; }
 
+        /* ── 侧边栏导航 radio 样式（步骤编号） ── */
+        [data-testid="stSidebar"] [role="radiogroup"] {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 4px 8px;
+        }
+        [data-testid="stSidebar"] .stRadio label {
+            display: flex;
+            align-items: center;
+            color: #64748b;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+            background: transparent;
+            margin: 0;
+            letter-spacing: 0.3px;
+        }
+        [data-testid="stSidebar"] .stRadio label:hover {
+            background: rgba(255,255,255,0.04);
+            color: #cbd5e1;
+        }
+        [data-testid="stSidebar"] .stRadio label[data-checked="true"] {
+            background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.08));
+            color: #93c5fd !important;
+            font-weight: 600;
+        }
 
-def main():
-    """主函数"""
-    # 初始化状态
-    if 'current_module' not in st.session_state:
-        st.session_state.current_module = "项目概览"
-    
-    # 渲染侧边栏
-    render_sidebar()
-    
-    # 页面路由
-    route_page(st.session_state.current_module)
+        /* ── 主内容区 ── */
+        .block-container {
+            padding: 2rem 2.5rem 2rem 2.5rem;
+            max-width: 1200px;
+        }
 
+        /* ── 按钮：扁平蓝 ── */
+        .stButton > button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 20px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: background 0.15s ease;
+            box-shadow: none;
+        }
+        .stButton > button:hover {
+            background: #2563eb;
+            box-shadow: none;
+            transform: none;
+        }
+        .stButton > button:active {
+            background: #1d4ed8;
+        }
 
-def render_sidebar():
-    """渲染侧边栏 - 分离项目概览和数据挖掘流程"""
-    
-    # 标题
-    st.sidebar.markdown("""
-    <div style="text-align: center; padding: 1rem 0;">
-        <div style="font-size: 1.2rem; font-weight: 600; color: #3498db;">
-            心脏病数据分析与预测
-        </div>
-        <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.3rem;">
-            基于机器学习的数据挖掘
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.sidebar.markdown("---")
-    
-    # ========== 项目概览（独立区域） ==========
-    st.sidebar.markdown("""
-    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); padding: 0 0.5rem; margin-bottom: 0.3rem;">
-        静态展示
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 项目概览按钮
-    overview_selected = st.session_state.current_module == "项目概览"
-    if st.sidebar.button(
-        "项目概览",
-        use_container_width=True,
-        type="primary" if overview_selected else "secondary",
-        key="nav_overview"
-    ):
-        st.session_state.current_module = "项目概览"
-        st.rerun()
-    
-    st.sidebar.caption("默认数据集的基本信息")
-    
-    st.sidebar.markdown("---")
-    
-    # ========== 数据挖掘流程（用户操作区域） ==========
-    st.sidebar.markdown('<div class="sidebar-title">数据挖掘流程</div>', unsafe_allow_html=True)
-    st.sidebar.markdown("""
-    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); padding: 0 0.5rem 0.5rem 0.5rem;">
-        用户操作区域
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 获取当前索引
-    workflow_keys = list(WORKFLOW_MODULES.keys())
-    current_workflow = st.session_state.current_module if st.session_state.current_module in workflow_keys else None
-    current_index = workflow_keys.index(current_workflow) if current_workflow else 0
-    
-    # 流程导航选择
-    selected = st.sidebar.radio(
-        "选择模块",
-        workflow_keys,
-        index=current_index if current_workflow else None,
-        format_func=lambda x: x,
-        label_visibility="collapsed"
+        /* ── 标签页：下划线风格 ── */
+        [data-testid="stTabs"] [role="tablist"] {
+            border-bottom: 1px solid #e2e8f0;
+            gap: 0;
+        }
+        [data-testid="stTabs"] [role="tab"] {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            padding: 8px 16px;
+            color: #718096;
+            font-weight: 500;
+            font-size: 0.9rem;
+            box-shadow: none;
+            margin-bottom: -1px;
+        }
+        [data-testid="stTabs"] [role="tab"]:hover {
+            color: #2d3748;
+            background: transparent;
+        }
+        [data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+            background: transparent !important;
+            color: #3b82f6 !important;
+            border-bottom: 2px solid #3b82f6;
+            box-shadow: none;
+            transform: none;
+        }
+        [data-testid="stTabs"] [role="tab"] span {
+            color: inherit !important;
+        }
+
+        /* ── 文件上传器：隐藏英文提示文字 ── */
+        [data-testid="stFileUploader"] section small {
+            display: none !important;
+        }
+        [data-testid="stFileUploader"] section div:first-child {
+            padding: 0.5rem !important;
+        }
+
+        /* ── 全局卡片样式（替代大量 inline HTML） ── */
+        .app-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.2rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            margin-bottom: 1rem;
+        }
+        .app-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+            color: #1e293b;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .app-metric {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            text-align: center;
+        }
+        .app-metric-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .app-metric-label {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .app-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .app-badge-blue  { background: #dbeafe; color: #1e40af; }
+        .app-badge-green { background: #dcfce7; color: #166534; }
+        .app-badge-gray  { background: #f1f5f9; color: #475569; }
+        .app-alert-warning {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: #92400e;
+            font-size: 0.85rem;
+        }
+
+        /* ── 数据框 ── */
+        .stDataFrame {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        /* ── 输入控件统一描边 ── */
+        .stSelectbox > div:first-child,
+        .stNumberInput > div:first-child,
+        .stTextInput > div:first-child {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+        }
+        .stSelectbox > div:first-child:focus-within,
+        .stNumberInput > div:first-child:focus-within,
+        .stTextInput > div:first-child:focus-within {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+        }
+
+        /* ── 标题层级 ── */
+        h1 { font-size: 1.5rem; font-weight: 700; color: #1a202c; margin-bottom: 0.25rem; }
+        h2 { font-size: 1.15rem; font-weight: 600; color: #2d3748; margin-bottom: 0.5rem; }
+        h3 { font-size: 1rem; font-weight: 600; color: #4a5568; }
+        p, li { color: #4a5568; font-size: 0.9rem; }
+
+        /* ── 分隔线 ── */
+        hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.25rem 0; }
+
+        /* ── metric 卡片 ── */
+        div[data-testid="metric-container"] {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        div[data-testid="metric-container"]:hover {
+            border-color: #cbd5e0;
+        }
+
+        /* ── 告警提示 ── */
+        .stSuccess, .stInfo, .stWarning, .stError {
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
-    
-    # 显示当前模块描述
-    if selected in WORKFLOW_MODULES:
-        st.sidebar.markdown(f"""
-        <div class="progress-hint">
-            当前: {WORKFLOW_MODULES[selected]['desc']}
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 更新状态
-    if selected and selected != st.session_state.current_module:
-        st.session_state.current_module = selected
-        st.rerun()
-    
-    st.sidebar.markdown("---")
-    
-    # 流程进度指示
-    st.sidebar.markdown("""
-    <div style="padding: 0.5rem 1rem; font-size: 0.8rem;">
-        <div style="opacity: 0.7; margin-bottom: 0.5rem;">工作流程</div>
-        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-            <span style="background: #3498db; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;">数据</span>
-            <span style="opacity: 0.5;">→</span>
-            <span style="background: #2ecc71; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;">特征</span>
-            <span style="opacity: 0.5;">→</span>
-            <span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;">模型</span>
-            <span style="opacity: 0.5;">→</span>
-            <span style="background: #9b59b6; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;">预测</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 模型状态反馈
-    st.sidebar.markdown("---")
-    if 'model_results' in st.session_state and st.session_state['model_results']:
-        results = st.session_state['model_results']
-        best_result = max(results, key=lambda x: x.get('准确率', 0))
-        best_model = best_result.get('模型', 'RF')
-        best_acc = best_result.get('准确率', 0)
-        st.sidebar.markdown(f"""
-        <div style="padding: 0.5rem 1rem; background: rgba(46, 204, 113, 0.2); border-radius: 6px; margin: 0.5rem;">
-            <div style="font-size: 0.75rem; opacity: 0.8;">当前最优模型</div>
-            <div style="font-size: 0.9rem; font-weight: 600; color: #2ecc71;">{best_model}</div>
-            <div style="font-size: 0.8rem;">准确率: {best_acc*100:.1f}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.sidebar.markdown("""
-        <div style="padding: 0.5rem 1rem; background: rgba(231, 76, 60, 0.2); border-radius: 6px; margin: 0.5rem;">
-            <div style="font-size: 0.75rem; opacity: 0.8;">模型状态</div>
-            <div style="font-size: 0.85rem;">待训练</div>
-            <div style="font-size: 0.75rem; opacity: 0.7;">请前往模型实验室</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 技术栈信息
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("""
-    <div style="padding: 0.5rem 1rem; font-size: 0.75rem; opacity: 0.7;">
-        <div style="margin-bottom: 0.3rem; font-weight: 500;">技术栈</div>
-        <div>Python · Scikit-learn · SHAP</div>
-        <div>Streamlit · Plotly · Pandas</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.sidebar.caption("本科毕业设计作品")
 
 
-def route_page(module: str):
-    """页面路由"""
-    if module == "项目概览":
-        from pages.overview import render_overview
-        render_overview()
-    
-    elif module == "1. 数据探索":
-        from pages.eda import render_eda
-        render_eda()
-    
-    elif module == "2. 特征工程":
-        from pages.feature_engineering import render_feature_engineering
-        render_feature_engineering()
-    
-    elif module == "3. 模型实验室":
-        from pages.model_lab import render_model_lab
-        render_model_lab()
-    
-    elif module == "4. 智能预测":
-        from pages.prediction import render_prediction
-        render_prediction()
+def init_state() -> None:
+    st.session_state.setdefault("current_page", "项目概览")
+    st.session_state.setdefault("raw_data", None)
+    st.session_state.setdefault("clean_data", None)
+    st.session_state.setdefault("data_summary", None)
+    st.session_state.setdefault("feature_scores", None)
+    st.session_state.setdefault("selected_features", None)
+    st.session_state.setdefault("model_comparison", None)
+    st.session_state.setdefault("best_model", None)
 
 
-# ==================== 程序入口 ====================
-# 直接运行主函数（兼容 Hugging Face Spaces 和本地运行）
-main()
+def _on_nav_change() -> None:
+    """侧边栏导航切换时立即更新当前页面"""
+    st.session_state["current_page"] = st.session_state["nav_radio"]
+
+
+def render_sidebar() -> str:
+    with st.sidebar:
+        # 顶部品牌区
+        st.markdown(
+            """
+            <div style="padding: 1.5rem 1rem 1rem 1rem; text-align: center;">
+                <div style="font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">心脏病分析系统</div>
+                <div style="color: #64748b; font-size: 0.75rem; margin-top: 4px;">数据分析与风险预测</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        page_order = ["项目概览", "数据探索", "特征工程", "模型实验", "风险预测"]
+
+        st.radio(
+            "导航",
+            page_order,
+            index=page_order.index(st.session_state["current_page"]),
+            key="nav_radio",
+            on_change=_on_nav_change,
+            label_visibility="collapsed",
+        )
+
+        selected = st.session_state["nav_radio"]
+        st.session_state["current_page"] = selected
+
+        # 状态面板
+        has_data = st.session_state.get("clean_data") is not None
+        cmp = st.session_state.get("model_comparison")
+
+        st.markdown(
+            "<div style='padding: 0 1rem 1rem 1rem;'>",
+            unsafe_allow_html=True,
+        )
+
+        # 数据状态
+        if has_data:
+            st.markdown(
+                "<div style='display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;'>"
+                "<div style='width: 6px; height: 6px; border-radius: 50%; background: #22c55e;'></div>"
+                "<div style='color: #86efac; font-size: 0.8rem;'>数据已加载</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;'>"
+                "<div style='width: 6px; height: 6px; border-radius: 50%; background: #64748b;'></div>"
+                "<div style='color: #64748b; font-size: 0.8rem;'>等待数据</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+        # 模型状态
+        if cmp is not None:
+            best_name = cmp["best_name"]
+            best_f1 = cmp["results"].iloc[0]["f1"]
+            st.markdown(
+                f"<div style='display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;'>"
+                f"<div style='width: 6px; height: 6px; border-radius: 50%; background: #22c55e;'></div>"
+                f"<div style='color: #86efac; font-size: 0.8rem;'>模型已训练</div>"
+                f"</div>"
+                f"<div style='margin-left: 1.1rem; color: #64748b; font-size: 0.7rem; margin-bottom: 0.5rem;'>{best_name} | F1 {best_f1:.3f}</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;'>"
+                "<div style='width: 6px; height: 6px; border-radius: 50%; background: #64748b;'></div>"
+                "<div style='color: #64748b; font-size: 0.8rem;'>等待训练</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    return selected
+
+
+def main() -> None:
+    PathConfig.ensure_dirs()
+    inject_style()
+    init_state()
+    render_sidebar()
+    st.session_state["current_page"] = st.session_state.get("nav_radio", "项目概览")
+
+    route = {
+        "项目概览": render_overview,
+        "数据探索": render_eda,
+        "特征工程": render_feature_engineering,
+        "模型实验": render_model_lab,
+        "风险预测": render_prediction,
+    }
+    route[st.session_state["current_page"]]()
+
+
+if __name__ == "__main__":
+    main()

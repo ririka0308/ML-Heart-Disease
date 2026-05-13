@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# Streamlit cache
+.streamlit/cache/
+
+# Generated data / model artifacts
+data/processed/
+models/*.joblib
+
+# OS
+.DS_Store
+Thumbs.db
