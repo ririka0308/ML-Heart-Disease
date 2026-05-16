@@ -1,7 +1,6 @@
 import datetime
 
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -17,6 +16,21 @@ def render_prediction() -> None:
     model = st.session_state.get("best_model")
     data = st.session_state.get("clean_data")
     trained_mode = st.session_state.get("trained_mode", "clinical")
+
+    # 无已训练模型时，尝试自动加载磁盘上的已保存模型
+    if model is None and data is not None:
+        from pathlib import Path
+        from src.heart_pipeline import load_model_bundle
+        from config.config import PathConfig
+        saved_path = PathConfig.MODEL_DIR / "best_model.joblib"
+        if saved_path.exists():
+            try:
+                bundle = load_model_bundle(saved_path)
+                st.session_state["best_model"] = bundle["model"]
+                model = bundle["model"]
+                st.info(f"已自动加载磁盘上的最佳模型，可直接进行预测。如需重新训练请前往「模型实验」页面。")
+            except Exception:
+                pass
 
     if model is None or data is None:
         st.warning("请先完成数据清洗和模型训练。")

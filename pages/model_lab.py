@@ -17,10 +17,12 @@ from src.heart_pipeline import (
     compare_models,
     extract_feature_importance,
     get_param_grid,
+    load_model_bundle,
     prepare_xy,
     save_model_bundle,
     tune_model,
 )
+from config.config import PathConfig
 
 
 def render_model_lab() -> None:
@@ -496,8 +498,24 @@ def render_model_lab() -> None:
                 else:
                     st.success(f"**拟合状态良好**：训练集与验证集得分差距 {gap:.3f}，模型泛化能力较强。")
 
-            if st.button("保存当前最优模型"):
-                path = save_model_bundle(model)
-                st.success(f"模型已保存到: {path}")
+            col_save, col_load = st.columns(2)
+            with col_save:
+                if st.button("保存当前最优模型", use_container_width=True):
+                    path = save_model_bundle(model)
+                    st.success(f"模型已保存到: {path}")
+            with col_load:
+                saved_path = PathConfig.MODEL_DIR / "best_model.joblib"
+                if saved_path.exists():
+                    if st.button("加载已保存模型", use_container_width=True):
+                        try:
+                            bundle = load_model_bundle(saved_path)
+                            st.session_state["best_model"] = bundle["model"]
+                            st.session_state["last_loaded_model"] = True
+                            st.success(f"已加载模型: {saved_path.name}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"加载失败: {e}")
+                else:
+                    st.caption("暂无已保存的模型")
 
             st.info("**MLP Neural Network** 作为深度学习部分，用于和传统机器学习模型做性能对比。")
